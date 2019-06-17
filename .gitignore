@@ -28,3 +28,4 @@ ehthumbs.db
 $RECYCLE.BIN/
 build.xml
 build.properties
+package.xml
