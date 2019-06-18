@@ -1,0 +1,75 @@
+global class Empbirthdaybacthemailtemplete implements Database.Batchable<sObject>{
+    
+    global Database.QueryLocator start(Database.BatchableContext bc) {
+        String query='';
+        try{
+            //  query='select Id,First_Name__c,Last_Name__c,Date_Of_Birth__c,Email__c from Employee_Detail__c';
+            	query='select id, Email,Birthdate from Contact where email != null limit 1';
+        }
+        catch(QueryException qe){
+            System.debug(qe.getMessage());
+        }
+        return Database.getQueryLocator(query); 
+    }
+    
+    global void execute(Database.BatchableContext bc, List<Contact> Scope){
+        
+        List <Messaging.SingleEmailMessage> mails= new List<Messaging.SingleEmailMessage>();
+        // Contact cont=(Contact)[select id, Email,Birthdate from Contact where email != null limit 1];
+        EmailTemplate et =new EmailTemplate();
+        try{
+            et = [SELECT Id,Subject,Body,HtmlValue,BrandTemplateId FROM EmailTemplate where name='Birthday Message'];
+        }
+        catch(QueryException ex){
+            System.debug('No Template Found'+ex.getMessage());             
+        } 
+        
+        List<Messaging.Emailfileattachment> fileAttachments = new List<Messaging.Emailfileattachment>();
+        for (Attachment a : [select Id,Name,Body,BodyLength,ParentId  from Attachment])
+        {
+            Messaging.Emailfileattachment efa = new Messaging.Emailfileattachment();
+            efa.setFileName('happy-birthday.jpg');
+            efa.setBody(a.Body);
+            fileAttachments.add(efa);
+        }
+        
+        for(Contact con : Scope) {
+            
+            Date toDay = date.today();
+            Integer todayDy  = toDay.day();
+            Integer todayMon = toDay.month();
+            
+            system.debug('todayDy: '+ todayDy);
+            system.debug('todayMon: '+ todayMon);
+            
+            Integer dy1  =  con.Birthdate.day();
+            Integer mon1 =  con.Birthdate.month();
+                        
+            String subject   = et.Subject;
+            String htmlBody  = et.HtmlValue;
+            String plainBody = et.Body;
+           
+            /*BrandTemplate bt =new BrandTemplate();
+        	  bt =[SELECT Id,Value FROM BrandTemplate where Id='0160K00000012qWQAQ'];
+        	  String letterheadbody = bt.Value;  
+			*/
+         
+            if(todayDy==dy1 && todayMon==mon1){
+                Messaging.SingleEmailMessage mail= new Messaging.SingleEmailMessage();
+                mail.setTemplateId(et.Id);
+                mail.setTargetObjectId(con.Id);
+                mail.setToAddresses(new List<String>{'sgalwea@gmail.com'});
+                mail.setSubject(subject);
+                mail.setHtmlBody(htmlBody);
+                mail.setPlainTextBody(plainBody);
+                mail.setFileAttachments(fileAttachments);
+                mails.add(mail);
+                system.debug('Mail: '+ mail);
+                Messaging.sendEmail(mails);
+            }
+        }
+    }
+    global void finish(Database.BatchableContext bc){
+        
+    }
+}
